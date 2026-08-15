@@ -1,0 +1,16 @@
+# data / intermediates
+chat.txt
+chat_big.txt
+input.txt
+*.log
+__pycache__/
+*.pyc
+
+# local server logs on NekoBox
+s_*.log
+ui.log
+after_*.log
+after_*.sh
+
+# OS
+.DS_Store
