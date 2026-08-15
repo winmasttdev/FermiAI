@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FermiAI Playground</title>
+<style>
+  :root{--bg:#0c0f17;--panel:#161b29;--acc:#ff7a59;--txt:#e7ecf5;--mut:#8a94ad;--ok:#52d273}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt)}
+  header{padding:16px 22px;border-bottom:1px solid #222a3d;display:flex;align-items:baseline;gap:12px}
+  header h1{margin:0;font-size:19px;color:var(--acc)}
+  header small{color:var(--mut)}
+  .tabs{display:flex;gap:6px;padding:12px 22px 0;flex-wrap:wrap}
+  .tab{padding:8px 16px;border:1px solid #2a3350;border-radius:10px 10px 0 0;cursor:pointer;color:var(--mut);background:#10141f}
+  .tab.active{color:var(--txt);background:var(--panel);border-bottom-color:var(--panel)}
+  .panel{display:none;padding:22px;background:var(--panel);margin:0 22px 22px;border:1px solid #222a3d;border-radius:0 12px 12px 12px}
+  .panel.active{display:block}
+  textarea,input[type=text]{width:100%;background:#0e1320;color:var(--txt);border:1px solid #2a3350;border-radius:8px;padding:10px;font-size:15px}
+  button{background:var(--acc);color:#1a0f0a;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-weight:600;margin-top:10px}
+  button.alt{background:#2a3350;color:var(--txt)}
+  .reply{margin-top:14px;background:#0e1320;border:1px solid #2a3350;border-radius:8px;padding:12px;min-height:44px;white-space:pre-wrap}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  canvas{background:#000;border-radius:8px;cursor:crosshair;touch-action:none}
+  .baby select{padding:8px;border-radius:8px;background:#0e1320;color:var(--txt);border:1px solid #2a3350}
+  .hint{color:var(--mut);font-size:13px;margin-top:6px}
+  .probs{display:flex;gap:4px;margin-top:12px;flex-wrap:wrap}
+  .pb{background:#0e1320;border:1px solid #2a3350;border-radius:6px;padding:5px 8px;font-size:13px}
+  .pb b{color:var(--ok)}
+</style>
+</head>
+<body>
+<header><h1>FermiAI Playground</h1><small>tiny neural nets running on a GTX 550 Ti (Fermi) via OpenCL</small></header>
+<div class="tabs">
+  <div class="tab active" data-t="chat">LLM Chat</div>
+  <div class="tab" data-t="num">Number Oracle</div>
+  <div class="tab" data-t="baby">Baby Lab</div>
+  <div class="tab" data-t="digit">Digit Eye</div>
+</div>
+
+<div class="panel active" id="chat">
+  <div class="hint">Word-level chatbot (6.98M params). It has a built-in calculator — try <b>2+2</b>, <b>10*3-5</b>.</div>
+  <textarea id="chatIn" rows="3" placeholder="say something to your tiny gpu friend..."></textarea>
+  <button onclick="sendChat()">Send</button>
+  <div class="reply" id="chatOut"></div>
+</div>
+
+<div class="panel" id="num">
+  <div class="hint">Tiny transformer trained on number sequences. Give it a pattern and it continues it — e.g. <b>3 6 9 12</b>, <b>2 4 8 16</b>.</div>
+  <input type="text" id="numIn" placeholder="3 6 9 12">
+  <button onclick="sendNum()">Predict next</button>
+  <div class="reply" id="numOut"></div>
+</div>
+
+<div class="panel baby" id="baby">
+  <div class="row">
+    <select id="babyModel">
+      <option value="a">a (only says "a")</option>
+      <option value="gpu">gpu (alternates "gpu a")</option>
+      <option value="rare">rare (forgot "gpu")</option>
+    </select>
+    <input type="text" id="babyIn" placeholder="type something..." style="flex:1">
+    <button onclick="sendBaby()">Run</button>
+  </div>
+  <div class="hint">Experimental "baby" models — proof that the Fermi can learn arbitrary tiny languages.</div>
+  <div class="reply" id="babyOut"></div>
+</div>
+
+<div class="panel" id="digit">
+  <div class="hint">MNIST digit MLP on the Fermi. Draw a digit (white on black) and it classifies it.</div>
+  <div class="row">
+    <canvas id="pad" width="280" height="280"></canvas>
+    <div>
+      <button onclick="recognize()">Recognize</button><br>
+      <button class="alt" onclick="clearPad()">Clear</button>
+      <div class="reply" id="digitOut" style="min-width:160px"></div>
+      <div class="probs" id="digitProbs"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// On GitHub Pages the models run on the Fermi via a public tunnel; locally the
+// page is served by ui_server.py (same origin). Update TUNNEL when you restart it.
+const TUNNEL = "https://5119b2c5657e338e-176-111-177-96.serveousercontent.com";
+const BACKEND = location.hostname.endsWith("github.io") ? TUNNEL : "";
+function post(url,p){return fetch(BACKEND+url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)}).then(r=>r.json())}
+function sendChat(){const t=document.getElementById("chatIn").value;if(!t)return;post("/api/chat",{toy:"chat",text:t}).then(d=>document.getElementById("chatOut").textContent=d.reply||"(no reply)");}
+function sendNum(){const t=document.getElementById("numIn").value;if(!t)return;post("/api/chat",{toy:"num",text:t}).then(d=>document.getElementById("numOut").textContent=d.reply||"(no reply)");}
+function sendBaby(){const m=document.getElementById("babyModel").value;const t=document.getElementById("babyIn").value;post("/api/chat",{toy:m,text:t}).then(d=>document.getElementById("babyOut").textContent=d.reply||"(no reply)");}
+document.querySelectorAll(".tab").forEach(el=>el.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+  el.classList.add("active");document.getElementById(el.dataset.t).classList.add("active");
+});
+// canvas
+const cv=document.getElementById("pad"),cx=cv.getContext("2d");cx.fillStyle="#000";cx.fillRect(0,0,280,280);cx.strokeStyle="#fff";cx.lineWidth=18;cx.lineCap="round";
+let drawing=false;
+function pos(e){const r=cv.getBoundingClientRect();const p=e.touches?e.touches[0]:e;return [p.clientX-r.left,p.clientY-r.top];}
+cv.onmousedown=e=>{drawing=true;cx.beginPath();const[x,y]=pos(e);cx.moveTo(x,y);};
+cv.onmousemove=e=>{if(!drawing)return;const[x,y]=pos(e);cx.lineTo(x,y);cx.stroke();};
+window.onmouseup=()=>drawing=false;
+cv.ontouchstart=e=>{e.preventDefault();drawing=true;cx.beginPath();const[x,y]=pos(e);cx.moveTo(x,y);};
+cv.ontouchmove=e=>{e.preventDefault();if(!drawing)return;const[x,y]=pos(e);cx.lineTo(x,y);cx.stroke();};
+cv.ontouchend=()=>drawing=false;
+function clearPad(){cx.fillStyle="#000";cx.fillRect(0,0,280,280);document.getElementById("digitOut").textContent="";document.getElementById("digitProbs").innerHTML="";}
+function recognize(){
+  const img=cx.getImageData(0,0,280,280).data;const N=28;const px=new Array(784).fill(0);
+  for(let gy=0;gy<N;gy++)for(let gx=0;gx<N;gx++){
+    let s=0,c=0;for(let y=gy*10;y<gy*10+10;y++)for(let x=gx*10;x<gx*10+10;x++){const i=(y*280+x)*4;s+=(255-img[i])/255;c++;}
+    px[gy*N+gx]=s/c;
+  }
+  post("/api/digit",{pixels:px}).then(d=>{
+    document.getElementById("digitOut").textContent=d.digit>=0?("digit: "+d.digit):("err: "+d.error);
+    const pp=document.getElementById("digitProbs");pp.innerHTML="";
+    (d.probs||[]).forEach((v,i)=>{const el=document.createElement("span");el.className="pb";el.innerHTML=i+": <b>"+(v*100).toFixed(0)+"%</b>";pp.appendChild(el);});
+  });
+}
+</script>
+</body>
+</html>
