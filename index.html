@@ -82,7 +82,7 @@
 <script>
 // On GitHub Pages the models run on the Fermi via a public tunnel; locally the
 // page is served by ui_server.py (same origin). Update TUNNEL when you restart it.
-const TUNNEL = "https://24ddea43c4da7e6b-176-111-177-96.serveousercontent.com";
+const TUNNEL = "https://6ea5183ce4a0fffd-176-111-177-96.serveousercontent.com";
 const BACKEND = location.hostname.endsWith("github.io") ? TUNNEL : "";
 function post(url,p){return fetch(BACKEND+url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)}).then(r=>r.json())}
 function sendChat(){const t=document.getElementById("chatIn").value;if(!t)return;post("/api/chat",{toy:"chat",text:t}).then(d=>document.getElementById("chatOut").textContent=d.reply||"(no reply)");}

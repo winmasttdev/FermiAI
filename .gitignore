@@ -14,3 +14,10 @@ after_*.sh
 
 # OS
 .DS_Store
+
+# FermiAI 450M training (huge data + checkpoints)
+chat450/data/
+chat450/out/
+chat450/*.txt
+chat450/__pycache__/
+

@@ -8,13 +8,14 @@ running on the NekoBox Fermi GPU. Toys:
   rare  -> 192.168.0.100:9005 (baby model: forgot "gpu")
   digit -> 192.168.0.100:9000 (MNIST digit MLP)
 """
-import json, socket, struct
+import json, socket, struct, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
 FERMI = "192.168.0.100"
-TEXT_PORTS = {"chat":9001, "num":9002, "a":9003, "gpu":9004, "rare":9005}
+TEXT_PORTS = {"num":9002, "a":9003, "gpu":9004, "rare":9005}
 DIGIT_PORT = 9000
+CHAT_SERVER = "http://127.0.0.1:9001/api/chat"
 
 def fermi_gen(port, text, timeout=60):
     s = socket.create_connection((FERMI, port), timeout=timeout)
@@ -30,6 +31,12 @@ def fermi_gen(port, text, timeout=60):
         pass
     s.close()
     return buf.decode("utf-8", "replace").strip()
+
+def local_chat(text, timeout=120):
+    req = urllib.request.Request(CHAT_SERVER, data=json.dumps({"prompt": text}).encode(),
+                                 headers={"Content-Type":"application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode()).get("reply","")
 
 def fermi_digit(pixels):
     s = socket.create_connection((FERMI, DIGIT_PORT), timeout=30)
@@ -76,10 +83,16 @@ class H(BaseHTTPRequestHandler):
         except Exception: data = {}
         if self.path == "/api/chat":
             toy = data.get("toy","chat")
+            text = data.get("text","")
+            if toy == "chat":
+                try:
+                    out = local_chat(text)
+                except Exception as e:
+                    self._send(200, json.dumps({"reply":"[chat model loading: %s]"%e})); return
+                self._send(200, json.dumps({"reply":out})); return
             port = TEXT_PORTS.get(toy)
             if not port:
                 self._send(400, json.dumps({"error":"unknown toy"})); return
-            text = data.get("text","")
             try:
                 out = fermi_gen(port, text)
             except Exception as e:
